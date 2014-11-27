@@ -1,0 +1,31 @@
+{
+    "name": "uniqby/yii2-ar-translatable",
+    "description": "Translatable ActiveRecord for Yii2.",
+    "type": "yii2-extension",
+    "keywords": [
+        "yii2",
+        "yii 2",
+        "translatable",
+        "translate",
+        "ActiveRecord"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alexander Sazanovich",
+            "email": "alexander@uniq.by"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/uniqby/yii2-ar-translatable/issues?state=open",
+        "source": "https://github.com/uniqby/yii2-ar-translatable"
+    },
+    "require": {
+        "yiisoft/yii2": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "uniqby\\yii2ArTranslatable\\": ""
+        }
+    }
+}
