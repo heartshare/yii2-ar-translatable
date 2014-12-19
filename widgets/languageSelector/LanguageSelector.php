@@ -14,10 +14,21 @@ use yii\base\Widget;
 
 class LanguageSelector extends Widget
 {
+    /**
+     * Указывает активный язык в виджете
+     *
+     * @var null|integer
+     */
+    public $currentId = null;
+
     public function run()
     {
+        if (null == $this->currentId || null === ($current = \Yii::$app->languageManager->getById($this->currentId))) {
+            $current = \Yii::$app->languageManager->getCurrent();
+        }
+
         return $this->render('default', [
-            'current' => \Yii::$app->languageManager->getCurrent(),
+            'current' => $current,
             'langs' => Language::find()->all(),
         ]);
     }

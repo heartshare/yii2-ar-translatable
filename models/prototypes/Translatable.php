@@ -60,7 +60,7 @@ class Translatable extends ActiveRecord
             if ($this->translation->hasAttribute($name)) {
                 $value = $this->translation->{$name};
             } else {
-                throw new UnknownPropertyException('Getting unknown property: ' . get_class($this) . '::' . $name);
+                throw $e;
             }
         }
 

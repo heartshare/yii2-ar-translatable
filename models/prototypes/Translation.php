@@ -13,6 +13,8 @@ use yii\db\ActiveRecord;
 
 class Translation extends ActiveRecord
 {
+    public $languageIdFieldName = 'language_id';
+
     /**
      * @inheritdoc
      * @return TranslationQuery
@@ -22,10 +24,8 @@ class Translation extends ActiveRecord
         return new TranslationQuery(get_called_class());
     }
 
-    public function behaviors()
+    public function getLanguage()
     {
-        return [
-            \uniqby\yii2ArTranslatable\behaviors\Translation::className()
-        ];
+        return $this->owner->hasOne(Language::className(), ['id' => $this->languageIdFieldName]);
     }
 } 

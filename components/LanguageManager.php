@@ -8,9 +8,10 @@
 
 namespace uniqby\yii2ArTranslatable\components;
 
+use common\models\UserProfile;
 use uniqby\yii2ArTranslatable\models\Language;
-use yii\base\Component;
 use Yii;
+use yii\base\Component;
 
 class LanguageManager extends Component
 {
@@ -19,25 +20,74 @@ class LanguageManager extends Component
      */
     private $current;
 
+    /**
+     * @var Language
+     */
+    private $default;
+
+    /**
+     * Получение языка по-умолчанию
+     *
+     * @return Language
+     */
     public function getDefault()
     {
-        return Language::getDefault();
+        if (null === $this->default) {
+            $this->default = Language::getDefault();
+        }
+        return $this->default;
     }
 
+    /**
+     * Получение активного для текщего запроса языка
+     *
+     * @return Language
+     */
     public function getCurrent()
     {
-        if ($this->current === null) {
+        if (null === $this->current) {
             $this->current = $this->getDefault();
         }
         return $this->current;
     }
 
-    //Установка текущего объекта языка и локаль пользователя
+    /**
+     * Установка текущего объекта языка и локаль пользователя
+     *
+     * @param null|string $url
+     */
     public function setCurrent($url = null)
     {
-        $language = Language::getByUrl($url);
-        $this->current = ($language === null) ? $this->getDefault() : $language;
+        $profile = null;
+        if (!Yii::$app->user->getIsGuest()) {
+            $profile = Yii::$app->getUser()->getIdentity()->profile;
+        }
 
-        Yii::$app->language = $this->current->locale;
+        $language = Language::getByUrl($url);
+        if ($language === null) {
+            // Язык не определен по URL, пытаемся получить из профиля пользователя.
+            if (!($profile instanceof UserProfile) || null === ($language = $profile->language)) {
+                // Если гость или в профиле пользователя не указан id языка, то применяем язык по-умолчанию.
+                $language = $this->getDefault();
+            }
+        } else {
+            // Если не гость - обновляем его язык.
+            if (($profile instanceof UserProfile) && $profile->language_id != $language->id) {
+                $profile->language_id = $language->id;
+                $profile->update(false, ['language_id']);
+            }
+        }
+
+        $this->current = $language;
+        Yii::$app->language = $language->locale;
+    }
+
+    public function getById($id)
+    {
+        if (empty($id)) {
+            return null;
+        }
+
+        return Language::findOne($id);
     }
 } 
