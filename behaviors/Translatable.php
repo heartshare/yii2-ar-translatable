@@ -134,7 +134,12 @@ class Translatable extends \yii\base\Behavior
     public function resolveClassName()
     {
         $paths = explode('\\', $this->owner->className());
+
         $parentClassName = array_pop($paths);
+        // Remove 'Search' from class name, eg.: NewsSearch -> News
+        if (substr($parentClassName, -6, 6) == 'Search') {
+            $parentClassName = str_replace('Search', '', $parentClassName);
+        }
 
         $paths[] = mb_strtolower($this->suffix, \Yii::$app->charset);
         $paths[] = $parentClassName . $this->suffix;
