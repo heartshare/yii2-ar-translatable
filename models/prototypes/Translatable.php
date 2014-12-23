@@ -29,7 +29,7 @@ class Translatable extends ActiveRecord
 
     public static function find()
     {
-        return parent::find()->with('translation');
+        return parent::find()->joinWith('translation');
     }
 
     /**
