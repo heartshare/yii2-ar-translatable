@@ -14,7 +14,9 @@ class TranslationQuery extends ActiveQuery
 {
     public function forLanguageId($id = null)
     {
-        $this->andWhere(['language_id' => $id]);
+        $alias = call_user_func([$this->modelClass, 'tableName']);
+
+        $this->andWhere([$alias . '.language_id' => $id]);
         return $this;
     }
 } 

@@ -44,11 +44,11 @@ class Language extends \yii\db\ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => Yii::t('uniqby/yii2ArTranslatable', 'ID'),
-            'url' => Yii::t('uniqby/yii2ArTranslatable', 'Url'),
-            'locale' => Yii::t('uniqby/yii2ArTranslatable', 'Locale'),
-            'name' => Yii::t('uniqby/yii2ArTranslatable', 'Name'),
-            'is_default' => Yii::t('uniqby/yii2ArTranslatable', 'Is Default'),
+            'id' => Yii::t('app', 'ID'),
+            'url' => Yii::t('app', 'Url'),
+            'locale' => Yii::t('app', 'Locale'),
+            'name' => Yii::t('app', 'Name'),
+            'is_default' => Yii::t('app', 'Is Default'),
         ];
     }
 
