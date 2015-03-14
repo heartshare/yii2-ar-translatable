@@ -8,6 +8,7 @@
 
 namespace uniqby\yii2ArTranslatable\behaviors;
 
+use yii\base\Model;
 use yii\base\UnknownClassException;
 use yii\db\ActiveRecord;
 
@@ -48,82 +49,59 @@ use yii\db\ActiveRecord;
  * @todo: Dont load translations when system, has only one language
  *
  * @package common\components\yii2ArTranslatable\behaviors
+ *
+ * @property ActiveRecord $owner
  */
 class Translatable extends \yii\base\Behavior
 {
+    public $translationRelation = 'translations';
+    /**
+     * @var string
+     */
+    public $languageIdFieldName = 'language_id';
+    /**
+     * @var string
+     */
+    public $ownerIdFieldName = 'owner_id';
+    /**
+     * @var string|null
+     */
+    public $translationModelClassName;
+    public $languageId;
+    private $translationModel;
     /**
      * @var string
      */
     private $suffix = 'Translation';
 
     /**
-     * @var string
+     * @inheritdoc
      */
-    private $_ownerIdFieldName = 'owner_id';
+    public function transactions()
+    {
+        return [
+            self::SCENARIO_DEFAULT => self::OP_INSERT | OP_UPDATE,
+        ];
+    }
 
     /**
-     * @var string
+     * @inheritdoc
      */
-    private $_languageIdFieldName = 'language_id';
-
-    /**
-     * @var string|null
-     */
-    private $_translationModelClassName;
-
-    private $_languageId;
-
-    public function getOwnerIdFieldName()
-    {
-        return $this->_ownerIdFieldName;
-    }
-
-    public function setOwnerIdFieldName($value)
-    {
-        $this->_ownerIdFieldName = $value;
-    }
-
-    public function getLanguageIdFieldName()
-    {
-        return $this->_languageIdFieldName;
-    }
-
-    public function setLanguageIdFieldName($value)
-    {
-        $this->_languageIdFieldName = $value;
-    }
-
-    public function getTranslationModelClassName()
-    {
-        return $this->_translationModelClassName;
-    }
-
-    public function setTranslationModelClassName($value)
-    {
-        $this->_translationModelClassName = $value;
-    }
-
-    public function getLanguageId()
-    {
-        return $this->_languageId;
-    }
-
-    public function setLanguageId($value)
-    {
-        $this->_languageId = $value;
-    }
-
     public function events()
     {
-        return array_merge(parent::events(), [
-            ActiveRecord::EVENT_INIT => 'initialize'
-        ]);
+        return [
+            ActiveRecord::EVENT_AFTER_VALIDATE => 'afterValidate',
+            ActiveRecord::EVENT_AFTER_INSERT => 'afterSave',
+            ActiveRecord::EVENT_AFTER_UPDATE => 'afterSave',
+        ];
     }
 
-    public function initialize()
+    public function attach($owner)
     {
-        $this->resolveLanguageId();
+        parent::attach($owner);
+
         $this->resolveClassName();
+        $this->resolveLanguageId();
     }
 
     /**
@@ -133,7 +111,7 @@ class Translatable extends \yii\base\Behavior
      */
     public function resolveClassName()
     {
-        if (empty($this->_translationModelClassName)) {
+        if (empty($this->translationModelClassName)) {
             $paths = explode('\\', $this->owner->className());
 
             $parentClassName = array_pop($paths);
@@ -144,14 +122,15 @@ class Translatable extends \yii\base\Behavior
 
             $paths[] = mb_strtolower($this->suffix, \Yii::$app->charset);
             $paths[] = $parentClassName . $this->suffix;
-            $this->_translationModelClassName = implode('\\', $paths);
+            $this->translationModelClassName = implode('\\', $paths);
+            $this->translationModel = new $this->translationModelClassName;
 
-            if (!class_exists($this->_translationModelClassName)) {
+            if (!class_exists($this->translationModelClassName)) {
                 throw new UnknownClassException();
             }
 
             \Yii::info(
-                "Translate model for '{$parentClassName}' resolved: '{$this->_translationModelClassName}'",
+                "Translate model for '{$parentClassName}' resolved: '{$this->translationModelClassName}'",
                 __METHOD__
             );
         }
@@ -159,8 +138,126 @@ class Translatable extends \yii\base\Behavior
 
     public function resolveLanguageId()
     {
-        if (null === $this->_languageId) {
-            $this->_languageId = \Yii::$app->languageManager->getCurrent()->id;
+        if (null === $this->languageId) {
+            $this->languageId = \Yii::$app->languageManager->getCurrent()->id;
         }
+    }
+
+    /**
+     * @return void
+     */
+    public function afterValidate()
+    {
+        if (!Model::validateMultiple($this->owner->{$this->translationRelation})) {
+            $this->owner->addError($this->translationRelation);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function afterSave()
+    {
+        /* @var ActiveRecord $translation */
+//        foreach ($this->owner->translations as $translation) {
+//            $this->owner->link('translations', $this->owner->translation);
+//        }
+
+        /* @var ActiveRecord $translation */
+        foreach ($this->owner->{$this->translationRelation} as $translation) {
+            $this->owner->link($this->translationRelation, $translation);
+        }
+    }
+
+    public function __get($name)
+    {
+        $t = $this->getTranslation();
+        try {
+            $value = $t->__get($name);
+        } catch (UnknownPropertyException $e) {
+            if ($t->hasAttribute($name)) {
+                $value = $t->getAtribute($name);
+            } else {
+                throw $e;
+            }
+        }
+
+        return $value;
+    }
+
+    public function __set($name, $value)
+    {
+        $t = $this->getTranslation();
+        try {
+            $value = $t->__set($name, $value);
+        } catch (UnknownPropertyException $e) {
+            if ($t->hasAttribute($name)) {
+                $t->setAttribute($name, $value);
+            } else {
+                throw $e;
+            }
+        }
+    }
+
+    /**
+     * Returns the translation model for the specified language.
+     *
+     * @param string|null $language
+     *
+     * @return ActiveRecord
+     */
+    public function getTranslation($language = null)
+    {
+        if ($language === null) {
+            $language = $this->languageId;
+        }
+
+        /* @var ActiveRecord[] $translations */
+        $translations = $this->owner->{$this->translationRelation};
+        foreach ($translations as $translation) {
+            if ($translation->getAttribute($this->languageIdFieldName) === $language) {
+                return $translation;
+            }
+        }
+        /* @var ActiveRecord $class */
+        $class = $this->owner->getRelation($this->translationRelation)->modelClass;
+        /* @var ActiveRecord $translation */
+        $translation = new $class();
+        $translation->setAttribute($this->languageIdFieldName, $language);
+        $translations[] = $translation;
+        $this->owner->populateRelation($this->translationRelation, $translations);
+        return $translation;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canGetProperty($name, $checkVars = true)
+    {
+        return in_array($name, $this->getTranslationModelAttributes()) || parent::canGetProperty($name, $checkVars);
+    }
+
+    /**
+     * Returns all attributes from translation model
+     *
+     * @return array
+     */
+    private function getTranslationModelAttributes()
+    {
+        $key = __CLASS__ . '_translationAttributes';
+        if (!($attributes = \Yii::$app->cache->get($key))) {
+            $attributes = array_keys($this->translationModel->attributes);
+            \Yii::$app->cache->set($key, $attributes, 60);
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canSetProperty($name, $checkVars = true)
+    {
+        return in_array($name, $this->getTranslationModelAttributes()) || parent::canSetProperty($name, $checkVars);
     }
 }
